@@ -13,3 +13,6 @@ export const firebaseConfig = {
 // Tên collection Firestore dùng chung
 export const EMP_COLLECTION = "employees";    // doc id = mã QR, field "name"
 export const SAVE_COLLECTION = "weighings";   // lịch sử cân
+export const USER_COLLECTION = "users";       // hồ sơ + quyền (doc id = uid Firebase Auth)
+export const META_COLLECTION = "meta";        // doc "setup" đánh dấu đã tạo admin đầu tiên
+export const EMAIL_DOMAIN = "khoancn.local";  // tên đăng nhập -> email nội bộ

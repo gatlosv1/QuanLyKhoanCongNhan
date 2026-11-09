@@ -1,4 +1,7 @@
-import { subscribeEmployees, saveEmployees, removeEmployee } from "./api.js";
+import { subscribeEmployees, saveEmployees, removeEmployee, requireUser, logout, ROLES, validUsername,
+  createAccount, subscribeUsers, setUserRole, removeUser } from "./api.js";
+
+const me = await requireUser('admin');   // chỉ admin; chưa đăng nhập -> index.html, không đủ quyền -> trạm cân
 
 const svgCache = new Map();
 const validCode = c => c && !c.includes('/') && c !== '.' && c !== '..' && c.length <= 100;
@@ -7,6 +10,34 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const SAMPLE = { code: 'NV001', name: 'Nguyễn Văn A', dept: 'Sản Xuất' };
 
 window.app = () => ({
+  me, roles: ROLES, users: [], busy: false, acc: { name: '', username: '', password: '', role: 'user' },
+  async signOut() { await logout(); location.replace('index.html'); },
+
+  get sortedUsers() { return [...this.users].sort((a, b) => a.username.localeCompare(b.username)); },
+
+  async addUser() {
+    const username = this.acc.username.trim().toLowerCase();
+    if (!validUsername(username)) return this.say('Tên đăng nhập 3-30 ký tự: a-z, 0-9, . _ -', true);
+    if (this.acc.password.length < 6) return this.say('Mật khẩu tối thiểu 6 ký tự', true);
+    this.busy = true;
+    try {
+      await createAccount({ username, password: this.acc.password, name: this.acc.name.trim(), role: this.acc.role });
+      this.say(`Đã tạo tài khoản ${username}`);
+      this.acc = { name: '', username: '', password: '', role: 'user' };
+    } catch (e) {
+      this.say(e.code === 'auth/email-already-in-use' ? 'Tên đăng nhập đã tồn tại' : 'Tạo tài khoản thất bại: ' + (e.code || e.message), true);
+    } finally { this.busy = false; }
+  },
+
+  async changeRole(u, role) {
+    try { await setUserRole(u.uid, role); this.say(`Đã đổi quyền ${u.username}`); }
+    catch (e) { this.say('Đổi quyền thất bại', true); }
+  },
+
+  async delUser(u) {
+    if (!confirm(`Xóa tài khoản ${u.username}?`)) return;
+    try { await removeUser(u.uid); this.say('Đã xóa tài khoản'); } catch (e) { this.say('Xóa thất bại', true); }
+  },
   list: [], q: '', form: { code: '', name: '', dept: '' }, bulk: '',
   msg: '', err: false, printCode: '',
 
@@ -35,6 +66,7 @@ window.app = () => ({
 
   init() {
     subscribeEmployees(l => { this.list = l; }, () => this.say('Không đọc được Firestore, kiểm tra cấu hình/quyền', true));
+    subscribeUsers(l => { this.users = l; }, () => this.say('Không đọc được danh sách tài khoản', true));
     addEventListener('afterprint', () => { this.printCode = ''; });
   },
 

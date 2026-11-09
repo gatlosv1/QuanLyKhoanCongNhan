@@ -1,4 +1,6 @@
-import { getEmployee, addWeighing, subscribeWeighings } from "./api.js";
+import { getEmployee, addWeighing, subscribeWeighings, deleteWeighing, clearWeighings, requireUser, logout } from "./api.js";
+
+const me = await requireUser();   // chưa đăng nhập -> về index.html
 
 const CFG = {
   minWeight: 0.05,     // kg: dưới mức này coi như chưa có hàng
@@ -22,6 +24,17 @@ const loadSettings = () => {
 const hw = { ports: {}, readers: {}, flush: {} };
 
 window.app = () => ({
+  me, isAdmin: me.role === 'admin',
+  async signOut() { await logout(); location.replace('index.html'); },
+  async delRow(r) {
+    if (!this.isAdmin || !confirm(`Xóa lần cân của ${r.empName} (${r.weight.toFixed(3)} kg)?`)) return;
+    try { await deleteWeighing(r.id); } catch (e) { this.flash('err', 'Xóa thất bại (cần quyền admin)'); }
+  },
+  async clearAll() {
+    if (!this.isAdmin || !confirm('Xóa TOÀN BỘ dữ liệu cân? Không thể khôi phục.')) return;
+    try { const n = await clearWeighings(); this.flash('ok', `Đã xóa ${n} bản ghi`); }
+    catch (e) { this.flash('err', 'Xóa thất bại (cần quyền admin)'); }
+  },
   st: 'idle', msg: 'Sẵn sàng: đưa thẻ lên quét hoặc đặt hàng lên cân',
   emp: null, pw: null, live: 0, stable: false, test: 0,
   cam: false, serial: false, scanCom: false, online: true, rows: [], raw: '',

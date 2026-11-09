@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đăng nhập</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-5" x-data="app()" x-cloak>
+
+<div class="w-full max-w-sm space-y-4">
+  <h1 class="text-2xl font-bold text-center">Quản lý khoán nhân viên</h1>
+
+  <div x-show="msg" x-text="msg" class="rounded-xl p-3 text-center font-semibold"
+       :class="err ? 'bg-red-600' : 'bg-green-600'"></div>
+
+  <form x-show="!setup" @submit.prevent="doLogin()" class="bg-slate-800 rounded-2xl p-5 space-y-3">
+    <h2 class="font-semibold text-lg">Đăng nhập</h2>
+    <input x-model="username" autocomplete="username" class="w-full px-3 py-2 rounded-lg bg-slate-700" placeholder="Tên đăng nhập" required>
+    <input x-model="password" type="password" autocomplete="current-password" class="w-full px-3 py-2 rounded-lg bg-slate-700" placeholder="Mật khẩu" required>
+    <button :disabled="busy" class="w-full py-2 rounded-lg bg-blue-600 font-semibold disabled:opacity-50">Đăng nhập</button>
+  </form>
+
+  <form x-show="setup" @submit.prevent="doSetup()" class="bg-slate-800 rounded-2xl p-5 space-y-3">
+    <h2 class="font-semibold text-lg">Thiết lập lần đầu</h2>
+    <p class="text-sm text-slate-400">Chưa có tài khoản nào. Hãy tạo tài khoản quản trị (admin) đầu tiên.</p>
+    <input x-model="name" class="w-full px-3 py-2 rounded-lg bg-slate-700" placeholder="Họ tên">
+    <input x-model="username" autocomplete="username" class="w-full px-3 py-2 rounded-lg bg-slate-700" placeholder="Tên đăng nhập (a-z, 0-9, . _ -)" required>
+    <input x-model="password" type="password" autocomplete="new-password" class="w-full px-3 py-2 rounded-lg bg-slate-700" placeholder="Mật khẩu (tối thiểu 6 ký tự)" required>
+    <button :disabled="busy" class="w-full py-2 rounded-lg bg-blue-600 font-semibold disabled:opacity-50">Tạo admin</button>
+  </form>
+</div>
+
+<script type="module" src="../js/login.js"></script>
+</body>
+</html>

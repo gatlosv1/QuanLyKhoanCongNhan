@@ -13,7 +13,9 @@
 <header class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-slate-800">
   <h1 class="text-xl font-bold"> Trạm cân &amp; quét nhân viên</h1>
   <div class="flex flex-wrap items-center gap-2 text-sm">
-    <a href="tao-qr.html" class="px-3 py-1 rounded-full bg-blue-600">Tạo QR nhân viên</a>
+    <a x-show="isAdmin" href="tao-qr.html" class="px-3 py-1 rounded-full bg-blue-600">Tạo QR &amp; tài khoản</a>
+    <span class="px-3 py-1 rounded-full bg-slate-700" x-text="me.name || me.username"></span>
+    <button @click="signOut()" class="px-3 py-1 rounded-full bg-slate-600">Đăng xuất</button>
     <span class="px-3 py-1 rounded-full" :class="cam ? 'bg-green-600' : 'bg-slate-600'">Camera</span>
     <span class="px-3 py-1 rounded-full" :class="scanCom ? 'bg-green-600' : 'bg-slate-600'">Súng COM</span>
     <span class="px-3 py-1 rounded-full" :class="serial ? 'bg-green-600' : 'bg-slate-600'">Cân</span>
@@ -116,14 +118,18 @@
 
   <!-- Lịch sử -->
   <section class="md:col-span-2 bg-slate-800 rounded-2xl p-4 overflow-x-auto">
-    <h2 class="font-semibold mb-2">Lần lưu gần nhất</h2>
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-semibold">Lần lưu gần nhất</h2>
+      <button x-show="isAdmin" @click="clearAll()" class="px-3 py-1 rounded bg-red-700 text-sm">Xóa toàn bộ dữ liệu cân</button>
+    </div>
     <table class="w-full text-left">
-      <thead class="text-slate-400 text-sm"><tr><th class="py-1">Giờ</th><th>Mã</th><th>Tên</th><th class="text-right">KL (kg)</th></tr></thead>
+      <thead class="text-slate-400 text-sm"><tr><th class="py-1">Giờ</th><th>Mã</th><th>Tên</th><th class="text-right">KL (kg)</th><th x-show="isAdmin"></th></tr></thead>
       <tbody>
         <template x-for="r in rows" :key="r.id">
           <tr class="border-t border-slate-700">
             <td class="py-2" x-text="r.time"></td><td x-text="r.empCode"></td><td x-text="r.empName"></td>
             <td class="text-right font-mono" x-text="r.weight.toFixed(3)"></td>
+            <td x-show="isAdmin" class="text-right"><button @click="delRow(r)" class="px-3 py-1 rounded bg-red-700 text-sm">Xóa</button></td>
           </tr>
         </template>
       </tbody>
