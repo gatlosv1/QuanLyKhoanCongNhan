@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tạo QR nhân viên</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;800&display=swap&subset=vietnamese" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen print:bg-white print:text-black" x-data="app()">
+
+<header class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-slate-800 print:hidden">
+  <h1 class="text-xl font-bold">Tạo QR nhân viên</h1>
+  <div class="flex items-center gap-2 text-sm">
+    <span class="px-3 py-1 rounded-full bg-green-600">Firestore</span>
+    <a href="tram-can.html" class="px-3 py-1 rounded-full bg-blue-600">Về trạm cân</a>
+  </div>
+</header>
+
+<div x-show="msg" x-text="msg" class="mx-5 mt-4 rounded-xl p-3 text-center font-semibold print:hidden"
+     :class="err ? 'bg-red-600' : 'bg-green-600'"></div>
+
+<main class="p-5 space-y-5 print:hidden">
+  <section class="grid md:grid-cols-2 gap-5 print:hidden">
+    <form @submit.prevent="add()" class="bg-slate-800 rounded-2xl p-4 space-y-2">
+      <h2 class="font-semibold">Thêm / sửa một nhân viên</h2>
+      <div class="grid grid-cols-3 gap-2">
+        <input x-model="form.code" class="px-3 py-2 rounded-lg bg-slate-700 font-mono" placeholder="Mã (vd NV001)" required>
+        <input x-model="form.name" class="px-3 py-2 rounded-lg bg-slate-700" placeholder="Họ tên" required>
+        <input x-model="form.dept" class="px-3 py-2 rounded-lg bg-slate-700" placeholder="Bộ phận">
+      </div>
+      <button class="w-full py-2 rounded-lg bg-blue-600 font-semibold">Lưu nhân viên</button>
+      <p class="text-xs text-slate-400">Mã trùng sẽ ghi đè thông tin cũ. Nội dung QR chính là mã nhân viên.</p>
+    </form>
+
+    <div class="bg-slate-800 rounded-2xl p-4 space-y-2">
+      <h2 class="font-semibold">Nhập nhiều nhân viên</h2>
+      <textarea x-model="bulk" rows="3" class="w-full px-3 py-2 rounded-lg bg-slate-700 font-mono text-sm"
+        placeholder="Mỗi dòng một người: mã, họ tên, bộ phận&#10;NV001, Nguyễn Văn A, Tổ 1&#10;NV002, Trần Thị B, Tổ 2"></textarea>
+      <button @click="importBulk()" class="w-full py-2 rounded-lg bg-slate-600 font-semibold">Nhập danh sách</button>
+    </div>
+  </section>
+
+  <section class="bg-slate-800 rounded-2xl p-4 flex flex-wrap items-start gap-4">
+    <div>
+      <h2 class="font-semibold mb-2">Xem trước thẻ (90 × 60 mm)</h2>
+      <div x-html="cardHtml(preview)"></div>
+    </div>
+    <p class="text-sm text-slate-400 flex-1 min-w-[200px]">Xem trước theo dữ liệu đang nhập ở ô "Thêm / sửa"; nếu để trống sẽ hiện mẫu. Thẻ in ra giống hệt khung này.</p>
+  </section>
+
+  <section class="bg-slate-800 rounded-2xl p-4 overflow-x-auto print:hidden">
+    <div class="flex flex-wrap items-center gap-2 mb-3 print:hidden">
+      <h2 class="font-semibold flex-1">Danh sách nhân viên (<span x-text="filtered.length"></span>)</h2>
+      <input x-model="q" class="px-3 py-2 rounded-lg bg-slate-700" placeholder="Tìm mã / tên / bộ phận">
+      <button @click="printAll()" class="px-4 py-2 rounded-lg bg-blue-600 font-semibold">In tất cả</button>
+    </div>
+    <table class="w-full text-left">
+      <thead class="text-slate-400 text-sm print:text-black">
+        <tr><th class="py-1 w-12">STT</th><th class="w-36">QR</th><th>Mã</th><th>Họ tên</th><th>Bộ phận</th><th class="print:hidden"></th></tr>
+      </thead>
+      <tbody>
+        <template x-for="(e, i) in filtered" :key="e.code">
+          <tr class="border-t border-slate-700 print:border-slate-400 print:break-inside-avoid"
+              :class="printCode && printCode !== e.code ? 'print:hidden' : ''">
+            <td class="py-2" x-text="i + 1"></td>
+            <td class="py-2"><div class="w-28 h-28 bg-white p-1 rounded" x-html="svg(e.code)"></div></td>
+            <td class="font-mono font-bold" x-text="e.code"></td>
+            <td x-text="e.name"></td>
+            <td x-text="e.dept || ''"></td>
+            <td class="text-right whitespace-nowrap print:hidden">
+              <button @click="printOne(e.code)" class="px-3 py-1 rounded bg-slate-600 text-sm">In thẻ</button>
+              <button @click="edit(e)" class="px-3 py-1 rounded bg-slate-600 text-sm">Sửa</button>
+              <button @click="del(e)" class="px-3 py-1 rounded bg-red-700 text-sm">Xóa</button>
+            </td>
+          </tr>
+        </template>
+        <tr x-show="!filtered.length"><td colspan="6" class="py-6 text-center text-slate-400">Chưa có nhân viên nào</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<div class="print-cards" x-html="printList.map(e => cardHtml(e)).join('')"></div>
+
+<script type="module" src="../js/tao-qr.js"></script>
+</body>
+</html>

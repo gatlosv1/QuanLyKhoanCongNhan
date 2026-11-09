@@ -1,0 +1,46 @@
+/* CSS dùng chung cho tao-qr.html và tram-can.html (phần lớn style dùng Tailwind) */
+[x-cloak] { display: none !important; }
+
+/* ===== Thẻ nhân viên 90x60mm: dùng chung cho preview và khi in ===== */
+.card {
+  box-sizing: border-box; position: relative; overflow: hidden;
+  width: 90mm; height: 60mm; background: #fff; color: #000;
+  font-family: 'Montserrat', Arial, sans-serif;
+}
+.card-head {
+  position: absolute; left: 0; right: 0; top: 0; height: 15mm;
+  display: flex; align-items: center; border-bottom: .4mm solid #000;
+}
+.card-company {
+  flex: 1; text-align: center; font-weight: 800; font-size: 3.1mm; line-height: 1.2;
+  text-transform: uppercase; padding: 0 2mm;
+}
+.card-qr {
+  position: absolute; left: 2mm; top: 17mm; width: 29mm; height: 29mm; box-sizing: border-box;
+  padding: 0; border: .3mm solid #000; border-radius: 2.2mm; background: #fff;
+}
+.card-qr svg { width: 100%; height: 100%; display: block; }
+.card-code {
+  position: absolute; left: 2mm; width: 29mm; top: 46.5mm; text-align: center;
+  font-size: 3.6mm; line-height: 1.2; word-break: break-all;
+}
+.card-title {
+  position: absolute; left: 32mm; right: 2mm; top: 18mm; white-space: nowrap;
+  font-weight: 800; font-size: 5.6mm; line-height: 1.2; text-transform: uppercase;
+}
+.card-field { position: absolute; left: 32mm; right: 2mm; font-size: 3.5mm; line-height: 1.2; }
+.card-name { top: 31mm; }
+.card-dept { top: 38mm; }
+.card-line { position: absolute; left: 34mm; right: 2mm; top: 52mm; border-top: .4mm solid #000; }
+
+.print-cards { display: none; }
+
+@page { size: 90mm 60mm; margin: 0; }
+
+@media print {
+  html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; min-height: 0 !important; }
+  .print-cards { display: block; }
+  .print-cards .card { break-inside: avoid; page-break-inside: avoid; }
+  .print-cards .card + .card { break-before: page; page-break-before: always; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

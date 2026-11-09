@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trạm cân - Quét nhân viên</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen" x-data="app()" x-cloak>
+
+<header class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-slate-800">
+  <h1 class="text-xl font-bold"> Trạm cân &amp; quét nhân viên</h1>
+  <div class="flex flex-wrap items-center gap-2 text-sm">
+    <a href="tao-qr.html" class="px-3 py-1 rounded-full bg-blue-600">Tạo QR nhân viên</a>
+    <span class="px-3 py-1 rounded-full" :class="cam ? 'bg-green-600' : 'bg-slate-600'">Camera</span>
+    <span class="px-3 py-1 rounded-full" :class="scanCom ? 'bg-green-600' : 'bg-slate-600'">Súng COM</span>
+    <span class="px-3 py-1 rounded-full" :class="serial ? 'bg-green-600' : 'bg-slate-600'">Cân</span>
+    <span class="px-3 py-1 rounded-full" :class="online ? 'bg-green-600' : 'bg-red-600'">Firestore</span>
+  </div>
+</header>
+
+<!-- Thanh trạng thái lớn -->
+<div class="mx-5 mt-4 rounded-2xl p-5 text-center text-2xl md:text-3xl font-bold transition-colors"
+     :class="{'bg-slate-700': st==='idle','bg-amber-500 text-slate-900': st==='wait','bg-green-600': st==='ok','bg-red-600': st==='err'}">
+  <span x-text="msg"></span>
+</div>
+
+<main class="grid md:grid-cols-2 gap-5 p-5">
+  <!-- Khối quét -->
+  <section class="bg-slate-800 rounded-2xl p-4">
+    <h2 class="font-semibold mb-2">1. Quét thẻ nhân viên</h2>
+    <div id="reader" class="rounded-xl overflow-hidden bg-black min-h-[220px]"></div>
+    <div class="flex gap-2 mt-3">
+      <button @click="toggleCam()" class="flex-1 py-3 rounded-xl bg-blue-600 font-semibold" x-text="cam ? 'Tắt camera' : 'Bật camera'"></button>
+      <button @click="switchCam()" class="flex-1 py-3 rounded-xl bg-slate-600 font-semibold">Đổi camera</button>
+    </div>
+    <p class="text-xs text-slate-400 mt-2">Súng quét: cứ bắn thẳng, trang tự nhận (không cần bấm vào ô nào).</p>
+    <div class="mt-3 p-3 rounded-xl" :class="emp ? 'bg-green-700' : 'bg-slate-700'">
+      <div class="text-sm text-slate-300">Nhân viên đã nhận</div>
+      <div class="text-xl font-bold" x-text="emp ? emp.name + ' (' + emp.code + ')' : '— chưa quét —'"></div>
+    </div>
+  </section>
+
+  <!-- Khối cân -->
+  <section class="bg-slate-800 rounded-2xl p-4">
+    <h2 class="font-semibold mb-2">2. Cân</h2>
+    <div class="text-center py-4 rounded-xl bg-black">
+      <div class="text-6xl md:text-7xl font-mono font-bold" x-text="live.toFixed(3)"></div>
+      <div class="text-lg mt-1">kg
+        <span class="ml-3 px-2 py-0.5 rounded text-sm" :class="stable ? 'bg-green-600' : 'bg-amber-500 text-slate-900'" x-text="stable ? 'Ổn định' : 'Đang dao động'"></span>
+      </div>
+    </div>
+    <div class="mt-3 p-3 rounded-xl" :class="pw !== null ? 'bg-green-700' : 'bg-slate-700'">
+      <div class="text-sm text-slate-300">Khối lượng đã nhận</div>
+      <div class="text-xl font-bold" x-text="pw !== null ? pw.toFixed(3) + ' kg' : '— chưa có —'"></div>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button @click="serial ? disconnect('scale') : pickPort('scale')" class="flex-1 py-3 rounded-xl bg-blue-600 font-semibold" x-text="serial ? 'Đã nối cân (bấm để ngắt)' : 'Nối cân'"></button>
+      <button @click="cancel()" class="flex-1 py-3 rounded-xl bg-red-700 font-semibold">Hủy nhận</button>
+    </div>
+    <div class="mt-2 text-xs text-slate-400 font-mono truncate">Dòng thô từ cân: <span x-text="raw || '—'"></span></div>
+    <details class="mt-3 text-sm">
+      <summary class="cursor-pointer text-slate-400">Test khi chưa có cân</summary>
+      <div class="flex gap-2 mt-2">
+        <input type="number" step="0.001" x-model.number="test" class="flex-1 px-3 py-2 rounded-lg bg-slate-700" placeholder="vd 12.5">
+        <button @click="feed(test, true)" class="px-4 rounded-lg bg-slate-600">Giả lập cân</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- Cài đặt nguồn nhận -->
+  <section class="md:col-span-2 bg-slate-800 rounded-2xl p-4">
+    <details>
+      <summary class="font-semibold cursor-pointer">Cài đặt nguồn nhận (cân &amp; máy quét)
+        <span class="ml-2 text-xs font-normal text-slate-400">tự lưu trên máy này, tự nối lại lần sau</span>
+      </summary>
+      <div class="grid md:grid-cols-2 gap-5 mt-4 text-sm">
+        <div class="space-y-2">
+          <h3 class="font-semibold text-base">Cân (cổng COM / USB-Serial)</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <label>Tốc độ (baud)
+              <select x-model="set.scale.baud" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700">
+                <template x-for="b in bauds"><option :value="b" x-text="b"></option></template>
+              </select></label>
+            <label>Data bits
+              <select x-model="set.scale.dataBits" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700"><option>8</option><option>7</option></select></label>
+            <label>Parity
+              <select x-model="set.scale.parity" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700"><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option></select></label>
+            <label>Stop bits
+              <select x-model="set.scale.stopBits" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700"><option>1</option><option>2</option></select></label>
+          </div>
+          <button @click="serial ? disconnect('scale') : pickPort('scale')" class="w-full py-2 rounded-lg bg-blue-600 font-semibold" x-text="serial ? 'Ngắt cân' : 'Nối cân'"></button>
+        </div>
+        <div class="space-y-2">
+          <h3 class="font-semibold text-base">Máy quét QR</h3>
+          <p class="text-slate-400">Camera và súng quét USB (giả lập bàn phím) luôn hoạt động. Nếu súng quét ở chế độ cổng COM (USB-CDC/RS232) thì nối thêm bên dưới.</p>
+          <div class="grid grid-cols-2 gap-2">
+            <label>Tốc độ (baud)
+              <select x-model="set.scan.baud" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700">
+                <template x-for="b in bauds"><option :value="b" x-text="b"></option></template>
+              </select></label>
+            <label>Data bits
+              <select x-model="set.scan.dataBits" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700"><option>8</option><option>7</option></select></label>
+            <label>Parity
+              <select x-model="set.scan.parity" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700"><option value="none">None</option><option value="even">Even</option><option value="odd">Odd</option></select></label>
+            <label>Stop bits
+              <select x-model="set.scan.stopBits" class="mt-1 w-full px-3 py-2 rounded-lg bg-slate-700"><option>1</option><option>2</option></select></label>
+          </div>
+          <button @click="scanCom ? disconnect('scan') : pickPort('scan')" class="w-full py-2 rounded-lg bg-blue-600 font-semibold" x-text="scanCom ? 'Ngắt súng quét COM' : 'Nối súng quét COM'"></button>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- Lịch sử -->
+  <section class="md:col-span-2 bg-slate-800 rounded-2xl p-4 overflow-x-auto">
+    <h2 class="font-semibold mb-2">Lần lưu gần nhất</h2>
+    <table class="w-full text-left">
+      <thead class="text-slate-400 text-sm"><tr><th class="py-1">Giờ</th><th>Mã</th><th>Tên</th><th class="text-right">KL (kg)</th></tr></thead>
+      <tbody>
+        <template x-for="r in rows" :key="r.id">
+          <tr class="border-t border-slate-700">
+            <td class="py-2" x-text="r.time"></td><td x-text="r.empCode"></td><td x-text="r.empName"></td>
+            <td class="text-right font-mono" x-text="r.weight.toFixed(3)"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script type="module" src="../js/tram-can.js"></script>
+</body>
+</html>
