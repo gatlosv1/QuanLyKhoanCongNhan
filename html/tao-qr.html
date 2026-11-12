@@ -67,13 +67,14 @@
               <td class="py-2 font-mono" x-text="u.username"></td>
               <td x-text="u.name"></td>
               <td>
-                <select :value="u.role" @change="changeRole(u, $event.target.value)" :disabled="u.uid === me.uid"
+                <select :value="u.role" @change="changeRole(u, $event.target.value)" :disabled="u.uid === me.uid || !canManage(u)"
                         class="px-2 py-1 rounded bg-slate-700 disabled:opacity-50">
+                  <template x-if="!canManage(u)"><option :value="u.role" x-text="u.role" selected></option></template>
                   <template x-for="(label, key) in roles"><option :value="key" x-text="label" :selected="u.role === key"></option></template>
                 </select>
               </td>
               <td class="text-right">
-                <button x-show="u.uid !== me.uid" @click="delUser(u)" class="px-3 py-1 rounded bg-red-700">Xóa</button>
+                <button x-show="u.uid !== me.uid && canManage(u)" @click="delUser(u)" class="px-3 py-1 rounded bg-red-700">Xóa</button>
               </td>
             </tr>
           </template>

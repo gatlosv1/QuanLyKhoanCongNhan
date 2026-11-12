@@ -1,7 +1,7 @@
 import { subscribeEmployees, saveEmployees, removeEmployee, requireUser, logout, ROLES, validUsername,
-  createAccount, subscribeUsers, setUserRole, removeUser } from "./api.js";
+  createAccount, subscribeUsers, setUserRole, removeUser, manageableRoles, canManage } from "./api.js";
 
-const me = await requireUser('admin');   // chỉ admin; chưa đăng nhập -> index.html, không đủ quyền -> trạm cân
+const me = await requireUser(['admin', 'dev']);   // chưa đăng nhập -> index.html, không đủ quyền -> trạm cân
 
 const svgCache = new Map();
 const validCode = c => c && !c.includes('/') && c !== '.' && c !== '..' && c.length <= 100;
@@ -10,7 +10,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const SAMPLE = { code: 'NV001', name: 'Nguyễn Văn A', dept: 'Sản Xuất' };
 
 window.app = () => ({
-  me, roles: ROLES, users: [], busy: false, acc: { name: '', username: '', password: '', role: 'user' },
+  me, roles: Object.fromEntries(Object.entries(ROLES).filter(([k]) => manageableRoles(me.role).includes(k))),
+  users: [], busy: false, acc: { name: '', username: '', password: '', role: 'user' },
+  canManage(u) { return canManage(me.role, u); },
   async signOut() { await logout(); location.replace('index.html'); },
 
   get sortedUsers() { return [...this.users].sort((a, b) => a.username.localeCompare(b.username)); },
@@ -21,7 +23,7 @@ window.app = () => ({
     if (this.acc.password.length < 6) return this.say('Mật khẩu tối thiểu 6 ký tự', true);
     this.busy = true;
     try {
-      await createAccount({ username, password: this.acc.password, name: this.acc.name.trim(), role: this.acc.role });
+      await createAccount({ username, password: this.acc.password, name: this.acc.name.trim(), role: this.acc.role }, me.role);
       this.say(`Đã tạo tài khoản ${username}`);
       this.acc = { name: '', username: '', password: '', role: 'user' };
     } catch (e) {
@@ -30,11 +32,13 @@ window.app = () => ({
   },
 
   async changeRole(u, role) {
+    if (!this.canManage(u) || !manageableRoles(me.role).includes(role)) return this.say('Không đủ quyền', true);
     try { await setUserRole(u.uid, role); this.say(`Đã đổi quyền ${u.username}`); }
     catch (e) { this.say('Đổi quyền thất bại', true); }
   },
 
   async delUser(u) {
+    if (!this.canManage(u)) return this.say('Không đủ quyền', true);
     if (!confirm(`Xóa tài khoản ${u.username}?`)) return;
     try { await removeUser(u.uid); this.say('Đã xóa tài khoản'); } catch (e) { this.say('Xóa thất bại', true); }
   },

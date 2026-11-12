@@ -13,7 +13,11 @@ const auth = getAuth(app);
 const secondary = initializeApp(firebaseConfig, 'secondary');   // tạo tài khoản mà không làm admin bị đăng xuất
 
 /* ---------- Đăng nhập & phân quyền ---------- */
-export const ROLES = { admin: 'Quản trị (admin)', user: 'Nhân viên trạm cân' };
+export const ROLES = { dev: 'Lập trình viên (dev)', admin: 'Quản trị (admin)', user: 'Nhân viên trạm cân' };
+export const isManager = role => role === 'dev' || role === 'admin';
+// dev quản lý được tất cả; admin không được tạo/sửa/xóa tài khoản dev
+export const manageableRoles = role => role === 'dev' ? ['dev', 'admin', 'user'] : role === 'admin' ? ['admin', 'user'] : [];
+export const canManage = (actorRole, target) => manageableRoles(actorRole).includes(target.role);
 export const validUsername = u => /^[a-z0-9._-]{3,30}$/.test(u) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u);
 const toEmail = u => { u = u.trim().toLowerCase(); return u.includes('@') ? u : `${u}@${EMAIL_DOMAIN}`; };
 
@@ -40,7 +44,7 @@ export function currentUser() {
 export async function requireUser(role) {
   const me = await currentUser();
   if (!me) { location.replace('index.html'); return new Promise(() => {}); }
-  if (role && me.role !== role) { location.replace('tram-can.html'); return new Promise(() => {}); }
+  if (role && ![].concat(role).includes(me.role)) { location.replace('tram-can.html'); return new Promise(() => {}); }
   return me;
 }
 
@@ -61,7 +65,8 @@ export async function setupFirstAdmin(username, password, name) {
 }
 
 /* ---------- Quản lý tài khoản (admin) ---------- */
-export async function createAccount({ username, password, name, role }) {
+export async function createAccount({ username, password, name, role }, actorRole) {
+  if (!manageableRoles(actorRole).includes(role)) throw Object.assign(new Error('forbidden'), { code: 'permission-denied' });
   const sec = getAuth(secondary);
   const cred = await createUserWithEmailAndPassword(sec, toEmail(username), password);
   try {

@@ -24,7 +24,7 @@ const loadSettings = () => {
 const hw = { ports: {}, readers: {}, flush: {} };
 
 window.app = () => ({
-  me, isAdmin: me.role === 'admin',
+  me, isAdmin: ['admin', 'dev'].includes(me.role),
   async signOut() { await logout(); location.replace('index.html'); },
   async delRow(r) {
     if (!this.isAdmin || !confirm(`Xóa lần cân của ${r.empName} (${r.weight.toFixed(3)} kg)?`)) return;

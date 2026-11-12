@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function signedIn() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function isDev() { return signedIn() && profile().role == 'dev'; }
+    function isAdmin() { return signedIn() && profile().role == 'admin'; }
+    function isManager() { return isDev() || isAdmin(); }
+
+    // dev quản lý mọi tài khoản; admin chỉ quản lý admin/user, không được tạo/sửa/xóa dev
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isManager());
+      allow create: if isDev()
+        || (isAdmin() && request.resource.data.role in ['admin', 'user'])
+        || (request.auth.uid == uid && request.resource.data.role == 'admin'
+            && !exists(/databases/$(database)/documents/meta/setup));   // admin đầu tiên
+      allow update: if isDev()
+        || (isAdmin() && resource.data.role in ['admin', 'user'] && request.resource.data.role in ['admin', 'user']);
+      allow delete: if isDev() || (isAdmin() && resource.data.role in ['admin', 'user']);
+    }
+
+    match /meta/{id} {
+      allow read: if true;
+      allow create: if request.auth != null && id == 'setup' && !exists(/databases/$(database)/documents/meta/setup);
+    }
+
+    match /employees/{id} {
+      allow read: if signedIn();
+      allow write: if isManager();
+    }
+
+    match /weighings/{id} {
+      allow read, create: if signedIn();
+      allow delete: if isManager();
+    }
+  }
+}
